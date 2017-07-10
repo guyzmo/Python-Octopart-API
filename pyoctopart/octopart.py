@@ -710,12 +710,12 @@ class Octopart(object):
             return None
 
     def parts_get(self, uid: int):
-        method = 'parts/{:d}'.format(uid)
+        method = 'parts/{:s}'.format(uid)
 
         json_obj = self._get_data(method, {}, ver=3)
 
         if json_obj:
-            return json_obj, json_obj['results']
+            return json_obj
         else:
             return None
 
