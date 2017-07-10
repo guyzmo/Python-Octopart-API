@@ -652,6 +652,7 @@ class Octopart(object):
                      start: int = 0,
                      limit: int = 10,
                      sortby: str = "score desc",
+                     **show_hide
                      ):
         # filter[fields][<fieldname>][]: string = "",
         # filter[queries][]: string = "",
@@ -666,6 +667,12 @@ class Octopart(object):
         # spec_drilldown[exclude_filter]: boolean = false,
         # spec_drilldown[limit]: integer = 10
         method = 'parts/search'
+        args = { 'q': q, 'limit': limit, 'start': start}
+        params = {}
+
+        params.update(OctopartPart.includes(**select_incls(show_hide)))
+        params.update(OctopartPart.shows(**select_shows(show_hide)))
+        params.update(OctopartPart.hides(**select_hides(show_hide)))
 
         if not len(q) >= 2:
             raise OctopartRangeArgumentError(['q'], [int], [2,float('inf')])
@@ -674,7 +681,7 @@ class Octopart(object):
         if start not in range(0,1001):
             raise OctopartRangeArgumentError(['limit'], [int], [0,1000])
 
-        json_obj = self._get_data(method, { 'q': q, 'limit': limit, 'start': start}, ver=3)
+        json_obj = self._get_data(method, args, params, ver=3)
 
         if json_obj:
             return json_obj, json_obj['results']
@@ -709,10 +716,15 @@ class Octopart(object):
         else:
             return None
 
-    def parts_get(self, uid: int):
+    def parts_get(self, uid: int, **show_hide):
         method = 'parts/{:s}'.format(uid)
+        params = {}
 
-        json_obj = self._get_data(method, {}, ver=3)
+        params.update(OctopartPart.includes(**select_incls(show_hide)))
+        params.update(OctopartPart.shows(**select_shows(show_hide)))
+        params.update(OctopartPart.hides(**select_hides(show_hide)))
+
+        json_obj = self._get_data(method, {}, params, ver=3)
 
         if json_obj:
             return json_obj
