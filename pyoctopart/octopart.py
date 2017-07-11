@@ -38,6 +38,7 @@ from .exceptions import OctopartNonJsonArgumentError
 from .exceptions import OctopartInvalidSortError
 from .exceptions import OctopartTooLongListError
 from .exceptions import OctopartInvalidApiKeyError
+from .exceptions import OctopartApiThrottleError
 
 __version__ = pkg_resources.require('pyoctopart')[0].version
 __author__ = 'Joe Baker <jbaker at alum.wpi.edu>'
@@ -602,7 +603,7 @@ class Octopart(object):
         self.verbose = verbose
 
 
-    def _get_data(self, method, args, payload=dict(), ver=2):
+    def _get_data(self, method, args, payload=dict(), ver=2, wait=1, attempts=1, maxattempts=1):
         """Constructs the URL to pass to _get().
 
         param method: String containing the method path, such as 'parts/search'.
@@ -628,6 +629,12 @@ class Octopart(object):
         r = requests.get(req_url, params=payload)
         if r.status_code == 404:
             return None
+        if r.status_code == 429:
+            if attempts < maxattempts:
+                time.sleep(wait)
+                self._get_data(method, args, payload=payload, ver=ver, wait=wait*2, attempts=attempts+1, maxattempts=maxattempts):
+            else:
+                raise OctopartApiThrottleError(args, [], [])
         elif r.status_code == 503:
             raise Octopart503Error(args, [], [])
 
@@ -652,6 +659,7 @@ class Octopart(object):
                      start: int = 0,
                      limit: int = 10,
                      sortby: str = "score desc",
+                     maxattempts = 1,
                      **show_hide
                      ):
         # filter[fields][<fieldname>][]: string = "",
@@ -681,7 +689,7 @@ class Octopart(object):
         if start not in range(0,1001):
             raise OctopartRangeArgumentError(['limit'], [int], [0,1000])
 
-        json_obj = self._get_data(method, args, params, ver=3)
+        json_obj = self._get_data(method, args, params, ver=3, maxattempts=maxattempts)
 
         if json_obj:
             return json_obj, json_obj['results']
@@ -691,6 +699,7 @@ class Octopart(object):
     def parts_match(self,
                     queries: list,
                     exact_only: bool = False,
+                    maxattempts = 1,
                     **show_hide):
 
         method = 'parts/match'
@@ -706,7 +715,7 @@ class Octopart(object):
             if type(q) != dict:
                 raise OctopartTypeArgumentError(['queries'], ['str'], [])
 
-        json_obj = self._get_data(method, args, params, ver=3)
+        json_obj = self._get_data(method, args, params, ver=3, maxattempts=maxattempts)
 
         # XXX consider using the following?
         # items = [OctopartPart.new_from_dict(item) for item in json_obj['results']['items']]
@@ -716,7 +725,7 @@ class Octopart(object):
         else:
             return None
 
-    def parts_get(self, uid: int, **show_hide):
+    def parts_get(self, uid: int, maxattempts = 1, **show_hide):
         method = 'parts/{:s}'.format(uid)
         params = {}
 
@@ -724,7 +733,7 @@ class Octopart(object):
         params.update(OctopartPart.shows(**select_shows(show_hide)))
         params.update(OctopartPart.hides(**select_hides(show_hide)))
 
-        json_obj = self._get_data(method, {}, params, ver=3)
+        json_obj = self._get_data(method, {}, params, ver=3, maxattempts=maxattempts)
 
         if json_obj:
             return json_obj

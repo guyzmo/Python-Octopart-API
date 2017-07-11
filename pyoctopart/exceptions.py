@@ -130,5 +130,12 @@ class OctopartTooLongListError(OctopartException):
             arg_ranges,
             'List argument outside of allowed length.')
 
+class OctopartApiThrottleError(OctopartException):
+    def __init__(self, args, arg_types, arg_ranges):
+        OctopartException.__init__(self,
+            args,
+            arg_types,
+            arg_ranges,
+            'Throttled by Octopart API.')
 
 
