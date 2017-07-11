@@ -632,7 +632,7 @@ class Octopart(object):
         if r.status_code == 429:
             if attempts < maxattempts:
                 time.sleep(wait)
-                self._get_data(method, args, payload=payload, ver=ver, wait=wait*2, attempts=attempts+1, maxattempts=maxattempts):
+                self._get_data(method, args, payload=payload, ver=ver, wait=wait*2, attempts=attempts+1, maxattempts=maxattempts)
             else:
                 raise OctopartApiThrottleError(args, [], [])
         elif r.status_code == 503:
