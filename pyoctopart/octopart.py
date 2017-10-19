@@ -692,7 +692,7 @@ class Octopart(object):
 
         json_obj = self._get_data(method, args, params, ver=3, maxattempts=maxattempts)
 
-        if json_obj:
+        if json_obj and 'results' in json_obj:
             return json_obj, json_obj['results']
         else:
             return None
@@ -721,7 +721,7 @@ class Octopart(object):
         # XXX consider using the following?
         # items = [OctopartPart.new_from_dict(item) for item in json_obj['results']['items']]
 
-        if json_obj:
+        if json_obj and 'results' in json_obj:
             return json_obj, json_obj['results']
         else:
             return None
@@ -767,7 +767,7 @@ class Octopart(object):
 
         json_obj = self._get_data(method, { 'q': q, 'limit': limit, 'start': start}, ver=2)
 
-        if json_obj:
+        if json_obj and 'results' in json_obj:
             return json_obj, json_obj['results']
         else:
             return None
@@ -886,7 +886,7 @@ class Octopart(object):
         json_obj = self._get_data(method, args, ver=2)
 
         results = []
-        if json_obj:
+        if json_obj and 'results' in json_obj:
             for result in json_obj['results']:
                 items = [OctopartPart.new_from_dict(item) for item in result['items']]
                 new_result = {'items' : items, 'reference' : result.get('reference', ''), 'status' : result['status']}
