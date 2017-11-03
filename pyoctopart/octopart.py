@@ -626,8 +626,9 @@ class Octopart(object):
             else:
                 v = val
             payload[arg] = v
-
-        r = requests.get(req_url, params=payload)
+        
+        headers = {'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'}
+        r = requests.get(req_url, params=payload, headers=headers)
         if r.status_code == 404:
             return None
         if r.status_code == 429:
