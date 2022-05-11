@@ -21,11 +21,15 @@ setup(name='pyoctopart',
       license='GPLv3',
       packages=['pyoctopart'],
       zip_safe=False,
-      setup_requires=['setuptools-markdown'],
+      setup_requires=[
+          'setuptools-markdown',
+          'pypandoc<=1.7.5'
+        ],
       install_requires=[
+          'pypandoc<=1.7.5'
           'pyoctopart',
           'requests',
-          'setuptools',
+          'setuptools'
       ],
       )
 

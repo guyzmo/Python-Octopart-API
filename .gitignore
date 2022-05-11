@@ -11,3 +11,6 @@ bin/*
 .coverage
 *.egg-info
 .installed.cfg
+.eggs
+venv
+build
