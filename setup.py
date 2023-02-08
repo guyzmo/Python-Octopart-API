@@ -26,7 +26,7 @@ setup(name='pyoctopart',
           'pypandoc<=1.7.5'
         ],
       install_requires=[
-          'pypandoc<=1.7.5'
+          'pypandoc<=1.7.5',
           'pyoctopart',
           'requests',
           'setuptools'
