@@ -21,6 +21,7 @@ limitations under the License.
 import copy
 import json
 import requests
+import time
 import datetime
 import pkg_resources
 
@@ -38,6 +39,7 @@ from .exceptions import OctopartNonJsonArgumentError
 from .exceptions import OctopartInvalidSortError
 from .exceptions import OctopartTooLongListError
 from .exceptions import OctopartInvalidApiKeyError
+from .exceptions import OctopartApiThrottleError
 
 __version__ = pkg_resources.require('pyoctopart')[0].version
 __author__ = 'Joe Baker <jbaker at alum.wpi.edu>'
@@ -602,7 +604,7 @@ class Octopart(object):
         self.verbose = verbose
 
 
-    def _get_data(self, method, args, payload=dict(), ver=2):
+    def _get_data(self, method, args, payload=dict(), ver=2, wait=1, attempts=1, maxattempts=1):
         """Constructs the URL to pass to _get().
 
         param method: String containing the method path, such as 'parts/search'.
@@ -624,10 +626,17 @@ class Octopart(object):
             else:
                 v = val
             payload[arg] = v
-
-        r = requests.get(req_url, params=payload)
+        
+        headers = {'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'}
+        r = requests.get(req_url, params=payload, headers=headers)
         if r.status_code == 404:
             return None
+        if r.status_code == 429:
+            if attempts < maxattempts:
+                time.sleep(wait)
+                self._get_data(method, args, payload=payload, ver=ver, wait=wait*2, attempts=attempts+1, maxattempts=maxattempts)
+            else:
+                raise OctopartApiThrottleError(args, [], [])
         elif r.status_code == 503:
             raise Octopart503Error(args, [], [])
 
@@ -652,6 +661,8 @@ class Octopart(object):
                      start: int = 0,
                      limit: int = 10,
                      sortby: str = "score desc",
+                     maxattempts = 1,
+                     **show_hide
                      ):
         # filter[fields][<fieldname>][]: string = "",
         # filter[queries][]: string = "",
@@ -666,6 +677,12 @@ class Octopart(object):
         # spec_drilldown[exclude_filter]: boolean = false,
         # spec_drilldown[limit]: integer = 10
         method = 'parts/search'
+        args = { 'q': q, 'limit': limit, 'start': start}
+        params = {}
+
+        params.update(OctopartPart.includes(**select_incls(show_hide)))
+        params.update(OctopartPart.shows(**select_shows(show_hide)))
+        params.update(OctopartPart.hides(**select_hides(show_hide)))
 
         if not len(q) >= 2:
             raise OctopartRangeArgumentError(['q'], [int], [2,float('inf')])
@@ -674,9 +691,9 @@ class Octopart(object):
         if start not in range(0,1001):
             raise OctopartRangeArgumentError(['limit'], [int], [0,1000])
 
-        json_obj = self._get_data(method, { 'q': q, 'limit': limit, 'start': start}, ver=3)
+        json_obj = self._get_data(method, args, params, ver=3, maxattempts=maxattempts)
 
-        if json_obj:
+        if json_obj and 'results' in json_obj:
             return json_obj, json_obj['results']
         else:
             return None
@@ -684,6 +701,7 @@ class Octopart(object):
     def parts_match(self,
                     queries: list,
                     exact_only: bool = False,
+                    maxattempts = 1,
                     **show_hide):
 
         method = 'parts/match'
@@ -699,23 +717,28 @@ class Octopart(object):
             if type(q) != dict:
                 raise OctopartTypeArgumentError(['queries'], ['str'], [])
 
-        json_obj = self._get_data(method, args, params, ver=3)
+        json_obj = self._get_data(method, args, params, ver=3, maxattempts=maxattempts)
 
         # XXX consider using the following?
         # items = [OctopartPart.new_from_dict(item) for item in json_obj['results']['items']]
 
-        if json_obj:
+        if json_obj and 'results' in json_obj:
             return json_obj, json_obj['results']
         else:
             return None
 
-    def parts_get(self, uid: int):
-        method = 'parts/{:d}'.format(uid)
+    def parts_get(self, uid: int, maxattempts = 1, **show_hide):
+        method = 'parts/{:s}'.format(uid)
+        params = {}
 
-        json_obj = self._get_data(method, {}, ver=3)
+        params.update(OctopartPart.includes(**select_incls(show_hide)))
+        params.update(OctopartPart.shows(**select_shows(show_hide)))
+        params.update(OctopartPart.hides(**select_hides(show_hide)))
+
+        json_obj = self._get_data(method, {}, params, ver=3, maxattempts=maxattempts)
 
         if json_obj:
-            return json_obj, json_obj['results']
+            return json_obj
         else:
             return None
 
@@ -745,7 +768,7 @@ class Octopart(object):
 
         json_obj = self._get_data(method, { 'q': q, 'limit': limit, 'start': start}, ver=2)
 
-        if json_obj:
+        if json_obj and 'results' in json_obj:
             return json_obj, json_obj['results']
         else:
             return None
@@ -864,7 +887,7 @@ class Octopart(object):
         json_obj = self._get_data(method, args, ver=2)
 
         results = []
-        if json_obj:
+        if json_obj and 'results' in json_obj:
             for result in json_obj['results']:
                 items = [OctopartPart.new_from_dict(item) for item in result['items']]
                 new_result = {'items' : items, 'reference' : result.get('reference', ''), 'status' : result['status']}
